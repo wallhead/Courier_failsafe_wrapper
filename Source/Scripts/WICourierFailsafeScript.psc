@@ -390,12 +390,12 @@ Function ForceDeliver(Actor courier)
 
 	If CourierSystem
 		CourierSystem.GiveItemsToPlayer()
-		WriteLog("ACTION: CourierSystem.GiveItemsToPlayer() called")
+		WriteLog("ACTION: vanilla CourierSystem.GiveItemsToPlayer() called")
 	Else
 		ObjectReference containerRef = GetCourierContainer()
 		If containerRef
-			containerRef.RemoveAllItems(PlayerRef, False, True)
-			WriteLog("ACTION: courier container moved directly to player")
+			containerRef.RemoveAllItems(PlayerRef)
+			WriteLog("ACTION: fallback courier container RemoveAllItems(PlayerRef) called")
 		Else
 			WriteLog("ACTION: force delivery could not find courier container")
 		EndIf
