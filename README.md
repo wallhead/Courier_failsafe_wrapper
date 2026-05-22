@@ -20,7 +20,8 @@ It was built after observing vanilla courier logs where pending courier items co
 ```
 
 Force delivery uses the vanilla `WICourierScript.GiveItemsToPlayer()` path, which clears `WICourierItemCount`, transfers the courier container contents to the player, and shows the vanilla items-added message.
-By default, force delivery waits until the player is in an exterior worldspace, out of combat, and not in a menu/dialogue.
+If the vanilla courier script property is unavailable, the wrapper uses a direct `WICourierContainerRef` property as a fallback and only clears pending state after a confirmed transfer.
+By default, soft reset, teleport, and force delivery wait until the player is in an exterior worldspace, out of combat, and not in a menu/dialogue.
 
 ## Included Files
 

@@ -32,10 +32,12 @@ if (!File.Exists(skyrimMasterPath))
 using var skyrim = SkyrimMod.CreateFromBinaryOverlay(skyrimMasterPath, SkyrimRelease.SkyrimSE);
 
 var wiCourierKey = FindQuest(skyrim, "WICourier");
+var courierContainerKey = FindPlacedObject(skyrim, "WICourierContainerRef");
 var itemCountKey = FindGlobal(skyrim, "WICourierItemCount");
 var playerRefKey = FormKey.Factory("000014:Skyrim.esm");
 
 Console.WriteLine($"WICourier:          {wiCourierKey}");
+Console.WriteLine($"CourierContainer:   {courierContainerKey}");
 Console.WriteLine($"WICourierItemCount: {itemCountKey}");
 Console.WriteLine($"PlayerRef:          {playerRefKey}");
 
@@ -64,6 +66,7 @@ quest.VirtualMachineAdapter.Scripts.Add(new ScriptEntry
     {
         ObjectProperty("WICourierQuest", wiCourierKey),
         ObjectProperty("CourierSystem", wiCourierKey),
+        ObjectProperty("CourierContainer", courierContainerKey),
         ObjectProperty("PlayerRef", playerRefKey),
         ObjectProperty("WICourierItemCount", itemCountKey),
         BoolProperty("LogOnlyMode", false),
@@ -108,6 +111,14 @@ static FormKey FindGlobal(ISkyrimModGetter mod, string editorId)
         .FirstOrDefault(g => string.Equals(g.EditorID, editorId, StringComparison.OrdinalIgnoreCase))
         ?.FormKey
         ?? throw new InvalidOperationException($"Could not find global EDID '{editorId}' in Skyrim.esm.");
+}
+
+static FormKey FindPlacedObject(ISkyrimModGetter mod, string editorId)
+{
+    return mod.EnumerateMajorRecords<IPlacedObjectGetter>()
+        .FirstOrDefault(p => string.Equals(p.EditorID, editorId, StringComparison.OrdinalIgnoreCase))
+        ?.FormKey
+        ?? throw new InvalidOperationException($"Could not find placed object EDID '{editorId}' in Skyrim.esm.");
 }
 
 static ScriptObjectProperty ObjectProperty(string name, FormKey target)

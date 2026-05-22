@@ -7,6 +7,9 @@ Quest Property WICourierQuest Auto
 WICourierScript Property CourierSystem Auto
 {Vanilla WICourierScript attached to WICourier.}
 
+ObjectReference Property CourierContainer Auto
+{Vanilla WICourierContainerRef. Used as a fallback if CourierSystem is unavailable.}
+
 ReferenceAlias Property CourierAlias Auto
 {Optional: vanilla WICourier courier alias.}
 
@@ -47,7 +50,7 @@ Bool Property AllowDirectDelivery = True Auto
 {If true, final failsafe moves courier container contents to the player.}
 
 Bool Property RequireSafeWorldForForceDelivery = True Auto
-{If true, direct handoff waits until the player is outside, out of combat, and not in menu/dialogue.}
+{If true, active failsafe actions wait until the player is outside, out of combat, and not in menu/dialogue.}
 
 Bool Property DebugMode = False Auto
 {If true, shows in-game notifications when the failsafe acts.}
@@ -324,7 +327,7 @@ Function HandleMissingCourier()
 		ForceDeliver(None)
 	ElseIf stalledFor >= SoftResetTime
 		WriteLog("MISSING: restarting courier quest")
-		RestartCourierQuest()
+		SoftReset(None)
 	EndIf
 EndFunction
 
@@ -339,7 +342,17 @@ Function SoftReset(Actor courier)
 		Return
 	EndIf
 
-	RestartCourierQuest()
+	String blockReason = GetFailsafeActionBlockReason()
+	If blockReason != ""
+		WriteLog("ACTION: soft reset delayed; " + blockReason)
+		Return
+	EndIf
+
+	Bool restarted = RestartCourierQuest()
+	If restarted == False
+		WriteLog("ACTION: soft reset restart request failed")
+		Return
+	EndIf
 
 	If courier
 		courier.StopCombatAlarm()
@@ -362,8 +375,18 @@ Function TeleportCourier(Actor courier)
 		Return
 	EndIf
 
+	String blockReason = GetFailsafeActionBlockReason()
+	If blockReason != ""
+		WriteLog("ACTION: teleport delayed; " + blockReason)
+		Return
+	EndIf
+
 	If courier
-		RestartCourierQuest()
+		Bool restarted = RestartCourierQuest()
+		If restarted == False
+			WriteLog("ACTION: teleport continuing after courier quest restart failed")
+		EndIf
+
 		courier.StopCombatAlarm()
 		courier.MoveTo(PlayerRef, 160.0, 80.0, 0.0)
 		courier.Enable()
@@ -389,7 +412,7 @@ Function ForceDeliver(Actor courier)
 		Return
 	EndIf
 
-	String blockReason = GetForceDeliveryBlockReason()
+	String blockReason = GetFailsafeActionBlockReason()
 	If blockReason != ""
 		WriteLog("ACTION: force delivery delayed; " + blockReason)
 		Return
@@ -397,22 +420,30 @@ Function ForceDeliver(Actor courier)
 
 	ShowForceDeliveryMessage()
 
+	Bool delivered = False
 	If CourierSystem
 		CourierSystem.GiveItemsToPlayer()
 		WriteLog("ACTION: vanilla CourierSystem.GiveItemsToPlayer() called")
+		delivered = True
 	Else
 		ObjectReference containerRef = GetCourierContainer()
 		If containerRef
 			containerRef.RemoveAllItems(PlayerRef)
 			WriteLog("ACTION: fallback courier container RemoveAllItems(PlayerRef) called")
+			delivered = True
 		Else
 			WriteLog("ACTION: force delivery could not find courier container")
 		EndIf
 
-		If WICourierItemCount
+		If delivered && WICourierItemCount
 			WICourierItemCount.SetValue(0.0)
 			WriteLog("ACTION: WICourierItemCount set to 0")
 		EndIf
+	EndIf
+
+	If delivered == False
+		WriteLog("ACTION: force delivery aborted; pending items were not cleared")
+		Return
 	EndIf
 
 	If courier
@@ -430,7 +461,7 @@ Function ForceDeliver(Actor courier)
 	WriteLog("ACTION: force delivery completed")
 EndFunction
 
-String Function GetForceDeliveryBlockReason()
+String Function GetFailsafeActionBlockReason()
 	If RequireSafeWorldForForceDelivery == False
 		Return ""
 	EndIf
@@ -475,15 +506,15 @@ Function ShowForceDeliveryMessage()
 	EndIf
 EndFunction
 
-Function RestartCourierQuest()
+Bool Function RestartCourierQuest()
 	If LogOnlyMode
 		WriteLog("RESTART: blocked by log-only mode")
-		Return
+		Return False
 	EndIf
 
 	If WICourierQuest == None
 		WriteLog("RESTART: skipped; WICourierQuest property is empty")
-		Return
+		Return False
 	EndIf
 
 	If WICourierQuest.IsRunning()
@@ -495,9 +526,12 @@ Function RestartCourierQuest()
 	If GetPendingItemCount() > 0
 		Bool started = WICourierQuest.Start()
 		WriteLog("RESTART: start requested; result=" + BoolToString(started))
+		Return started
 	Else
 		WriteLog("RESTART: skipped start; no pending items")
 	EndIf
+
+	Return False
 EndFunction
 
 Int Function GetPendingItemCount()
@@ -528,6 +562,10 @@ Actor Function GetCourierActor()
 EndFunction
 
 ObjectReference Function GetCourierContainer()
+	If CourierContainer
+		Return CourierContainer
+	EndIf
+
 	If CourierSystem && CourierSystem.pCourierContainer
 		Return CourierSystem.pCourierContainer
 	EndIf
