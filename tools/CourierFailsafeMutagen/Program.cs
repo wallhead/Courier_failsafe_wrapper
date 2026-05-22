@@ -74,7 +74,7 @@ quest.VirtualMachineAdapter.Scripts.Add(new ScriptEntry
         BoolProperty("LogEnabled", true),
         BoolProperty("LogEveryCheck", true),
         StringProperty("LogName", "WICourierFailsafe"),
-        StringProperty("ForceDeliveryMessage", "Курьер устал за тобой бегать и прислал все письма почтой, не забудь прочитать их в инвентаре!")
+        StringProperty("ForceDeliveryMessage", "Kurier ustal za toboy begat i prislal vse pisma pochte. Ne zabud prochitat ih v inventare!")
     }
 });
 

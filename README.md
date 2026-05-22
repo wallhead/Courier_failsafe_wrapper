@@ -16,7 +16,7 @@ It was built after observing vanilla courier logs where pending courier items co
 - Shows a blocking message box before force delivery:
 
 ```text
-Курьер устал за тобой бегать и прислал все письма почтой, не забудь прочитать их в инвентаре!
+Kurier ustal za toboy begat i prislal vse pisma pochte. Ne zabud prochitat ih v inventare!
 ```
 
 Force delivery uses the vanilla `WICourierScript.GiveItemsToPlayer()` path, which clears `WICourierItemCount`, transfers the courier container contents to the player, and shows the vanilla items-added message.

@@ -67,7 +67,7 @@ Bool Property LogEveryCheck = True Auto
 String Property LogName = "WICourierFailsafe" Auto
 {Papyrus user log name.}
 
-String Property ForceDeliveryMessage = "Курьер устал за тобой бегать и прислал все письма почтой, не забудь прочитать их в инвентаре!" Auto
+String Property ForceDeliveryMessage = "Kurier ustal za toboy begat i prislal vse pisma pochte. Ne zabud prochitat ih v inventare!" Auto
 {Shown when the failsafe directly delivers courier items.}
 
 Float LastProgressTime = 0.0
