@@ -16,10 +16,11 @@ It was built after observing vanilla courier logs where pending courier items co
 - Shows a blocking message box before force delivery:
 
 ```text
-The courier cannot reach you here. Your pending letters have been delivered directly.
+Курьер устал за тобой бегать и прислал все письма почтой, не забудь прочитать их в инвентаре!
 ```
 
 Force delivery uses the vanilla `WICourierScript.GiveItemsToPlayer()` path, which clears `WICourierItemCount`, transfers the courier container contents to the player, and shows the vanilla items-added message.
+By default, force delivery waits until the player is in an exterior worldspace, out of combat, and not in a menu/dialogue.
 
 ## Included Files
 

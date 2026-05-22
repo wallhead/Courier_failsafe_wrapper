@@ -46,6 +46,9 @@ Float Property ProgressTolerance = 128.0 Auto
 Bool Property AllowDirectDelivery = True Auto
 {If true, final failsafe moves courier container contents to the player.}
 
+Bool Property RequireSafeWorldForForceDelivery = True Auto
+{If true, direct handoff waits until the player is outside, out of combat, and not in menu/dialogue.}
+
 Bool Property DebugMode = False Auto
 {If true, shows in-game notifications when the failsafe acts.}
 
@@ -61,7 +64,7 @@ Bool Property LogEveryCheck = True Auto
 String Property LogName = "WICourierFailsafe" Auto
 {Papyrus user log name.}
 
-String Property ForceDeliveryMessage = "The courier cannot reach you here. Your pending letters have been delivered directly." Auto
+String Property ForceDeliveryMessage = "Курьер устал за тобой бегать и прислал все письма почтой, не забудь прочитать их в инвентаре!" Auto
 {Shown when the failsafe directly delivers courier items.}
 
 Float LastProgressTime = 0.0
@@ -386,6 +389,12 @@ Function ForceDeliver(Actor courier)
 		Return
 	EndIf
 
+	String blockReason = GetForceDeliveryBlockReason()
+	If blockReason != ""
+		WriteLog("ACTION: force delivery delayed; " + blockReason)
+		Return
+	EndIf
+
 	ShowForceDeliveryMessage()
 
 	If CourierSystem
@@ -419,6 +428,44 @@ Function ForceDeliver(Actor courier)
 	LastActionLevel = 3
 	Notify("Courier items delivered by failsafe")
 	WriteLog("ACTION: force delivery completed")
+EndFunction
+
+String Function GetForceDeliveryBlockReason()
+	If RequireSafeWorldForForceDelivery == False
+		Return ""
+	EndIf
+
+	If PlayerRef == None
+		PlayerRef = Game.GetPlayer()
+	EndIf
+
+	If PlayerRef == None
+		Return "player reference unavailable"
+	EndIf
+
+	If Utility.IsInMenuMode()
+		Return "menu/dialogue is open"
+	EndIf
+
+	If PlayerRef.IsInCombat() || PlayerRef.GetCombatState() != 0
+		Return "player is in combat"
+	EndIf
+
+	Cell playerCell = PlayerRef.GetParentCell()
+	If playerCell == None
+		Return "player cell unavailable"
+	EndIf
+
+	If playerCell.IsInterior()
+		Return "player is not in exterior worldspace"
+	EndIf
+
+	WorldSpace playerWorld = PlayerRef.GetWorldSpace()
+	If playerWorld == None
+		Return "player worldspace unavailable"
+	EndIf
+
+	Return ""
 EndFunction
 
 Function ShowForceDeliveryMessage()

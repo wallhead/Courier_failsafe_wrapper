@@ -67,10 +67,11 @@ quest.VirtualMachineAdapter.Scripts.Add(new ScriptEntry
         ObjectProperty("PlayerRef", playerRefKey),
         ObjectProperty("WICourierItemCount", itemCountKey),
         BoolProperty("LogOnlyMode", false),
+        BoolProperty("RequireSafeWorldForForceDelivery", true),
         BoolProperty("LogEnabled", true),
         BoolProperty("LogEveryCheck", true),
         StringProperty("LogName", "WICourierFailsafe"),
-        StringProperty("ForceDeliveryMessage", "The courier cannot reach you here. Your pending letters have been delivered directly.")
+        StringProperty("ForceDeliveryMessage", "Курьер устал за тобой бегать и прислал все письма почтой, не забудь прочитать их в инвентаре!")
     }
 });
 
