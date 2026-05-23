@@ -79,6 +79,7 @@ quest.VirtualMachineAdapter.Scripts.Add(new ScriptEntry
 });
 
 patch.WriteToBinary(outputPluginPath);
+SetEslFlag(outputPluginPath);
 WriteSeq(outputSeqPath, QuestLocalFormId);
 CopyScripts(SourceScriptsMod, outputModPath);
 
@@ -96,6 +97,7 @@ Console.WriteLine($"  Quest:       {verifyQuest.FormKey} {verifyQuest.EditorID}"
 Console.WriteLine($"  Start game:  {verifyQuest.Flags.HasFlag(Quest.Flag.StartGameEnabled)}");
 Console.WriteLine($"  Scripts:     {verifyQuest.VirtualMachineAdapter?.Scripts.Count ?? 0}");
 Console.WriteLine($"  Properties:  {verifyQuest.VirtualMachineAdapter?.Scripts.FirstOrDefault()?.Properties.Count ?? 0}");
+Console.WriteLine($"  ESL flagged: {IsEslFlagged(outputPluginPath)}");
 
 static FormKey FindQuest(ISkyrimModGetter mod, string editorId)
 {
@@ -154,6 +156,34 @@ static void WriteSeq(string seqPath, uint localFormId)
     data[2] = (byte)((localFormId >> 16) & 0xFF);
     data[3] = (byte)((localFormId >> 24) & 0xFF);
     File.WriteAllBytes(seqPath, data.ToArray());
+}
+
+static void SetEslFlag(string pluginPath)
+{
+    const uint EslFlag = 0x00000200;
+    var bytes = File.ReadAllBytes(pluginPath);
+    var signature = System.Text.Encoding.ASCII.GetString(bytes, 0, 4);
+    if (signature != "TES4")
+    {
+        throw new InvalidOperationException($"Plugin '{pluginPath}' does not start with a TES4 header.");
+    }
+
+    var flags = BitConverter.ToUInt32(bytes, 8);
+    flags |= EslFlag;
+    Array.Copy(BitConverter.GetBytes(flags), 0, bytes, 8, 4);
+    File.WriteAllBytes(pluginPath, bytes);
+
+    if (!IsEslFlagged(pluginPath))
+    {
+        throw new InvalidOperationException($"Failed to set ESL flag on '{pluginPath}'.");
+    }
+}
+
+static bool IsEslFlagged(string pluginPath)
+{
+    const uint EslFlag = 0x00000200;
+    var bytes = File.ReadAllBytes(pluginPath);
+    return (BitConverter.ToUInt32(bytes, 8) & EslFlag) != 0;
 }
 
 static void CopyScripts(string sourceModPath, string outputModPath)

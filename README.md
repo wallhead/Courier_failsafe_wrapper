@@ -7,6 +7,7 @@ It was built after observing vanilla courier logs where pending courier items co
 ## What It Does
 
 - Adds a start-game-enabled watchdog quest.
+- Ships as an ESL-flagged ESP.
 - Monitors the vanilla `WICourierItemCount` global.
 - Lets vanilla WICourier start, stop, and restart normally.
 - Avoids treating normal holding-cell or invalid-distance states as immediate failures.
