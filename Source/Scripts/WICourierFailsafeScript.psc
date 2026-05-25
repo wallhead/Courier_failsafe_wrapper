@@ -28,8 +28,6 @@ Float Property SoftResetTime = 90.0 Auto
 Float Property StartupGraceTime = 60.0 Auto
 {Seconds to let vanilla story manager start or restart WICourier after pending items appear.}
 
-Float Property TeleportTime = 150.0 Auto
-{Seconds without progress before moving the courier to the player.}
 
 Float Property ForceDeliverTime = 300.0 Auto
 {Seconds without progress before direct handoff.}
@@ -40,8 +38,6 @@ Float Property CloseDeliveryTime = 90.0 Auto
 Float Property ApproachDistance = 700.0 Auto
 {Courier is considered close enough at this distance.}
 
-Float Property StuckDistance = 5000.0 Auto
-{Courier this far away is treated as pathing-stuck immediately.}
 
 Float Property ProgressTolerance = 128.0 Auto
 {Distance improvement required to count as progress.}
@@ -61,7 +57,7 @@ Bool Property LogOnlyMode = False Auto
 Bool Property LogEnabled = True Auto
 {If true, writes to the named Papyrus user log.}
 
-Bool Property LogEveryCheck = True Auto
+Bool Property LogEveryCheck = False Auto
 {If true, writes every watchdog check and result.}
 
 String Property LogName = "WICourierFailsafe" Auto
@@ -73,6 +69,8 @@ String Property ForceDeliveryMessage = "Курьер устал бегать за вами и прислал пи
 Float LastProgressTime = 0.0
 Float DeliveryStartTime = 0.0
 Float LastCloseTime = 0.0
+Float BadStateStartTime = 0.0
+Float QueuedDelay = 0.0
 Float LastDistance = -1.0
 Bool DeliveryActive = False
 Bool UpdateQueued = False
@@ -90,6 +88,7 @@ EndEvent
 
 Event OnUpdate()
 	UpdateQueued = False
+	QueuedDelay = 0.0
 
 	If Busy
 		WriteLog("UPDATE: skipped because previous check is still busy")
@@ -165,18 +164,19 @@ Function MonitorCourier()
 		Else
 			courier.Resurrect()
 			courier.ResetHealthAndLimbs()
-			MarkAction(1, "Courier was dead; resurrected")
+			MarkAction(0, "Courier was dead; resurrected")
 		EndIf
 	EndIf
 
 	If courier.IsDisabled()
-		WriteLog("STATE " + CheckCount + ": courier is disabled while pending items exist; deliveryAge=" + deliveryAge)
-		If deliveryAge < SoftResetTime
-			WriteLog("RESULT " + CheckCount + ": disabled courier is still inside vanilla startup/restart window")
+		Float badStateAge = GetBadStateAge(nowTime)
+		WriteLog("STATE " + CheckCount + ": courier is disabled while pending items exist; deliveryAge=" + deliveryAge + ", badStateAge=" + badStateAge)
+		If badStateAge < SoftResetTime
+			WriteLog("RESULT " + CheckCount + ": disabled courier is still inside bad-state grace window")
 			Return
 		EndIf
 
-		If deliveryAge >= ForceDeliverTime && AllowDirectDelivery
+		If badStateAge >= ForceDeliverTime && AllowDirectDelivery
 			WriteLog("DECISION " + CheckCount + ": courier stayed disabled past force-delivery threshold")
 			If LogOnlyMode
 				WriteLog("OBSERVE " + CheckCount + ": log-only mode would force-deliver disabled courier delivery")
@@ -204,14 +204,15 @@ Function MonitorCourier()
 	EndIf
 
 	If invalidDistance
-		WriteLog("STATE " + CheckCount + ": courier distance is invalid or unloaded")
+		Float badStateAge = GetBadStateAge(nowTime)
+		WriteLog("STATE " + CheckCount + ": courier distance is invalid or unloaded; badStateAge=" + badStateAge)
 
-		If deliveryAge < SoftResetTime
-			WriteLog("RESULT " + CheckCount + ": invalid distance is still inside vanilla startup/restart window")
+		If badStateAge < SoftResetTime
+			WriteLog("RESULT " + CheckCount + ": invalid distance is still inside bad-state grace window")
 			Return
 		EndIf
 
-		If deliveryAge >= ForceDeliverTime && AllowDirectDelivery
+		If badStateAge >= ForceDeliverTime && AllowDirectDelivery
 			WriteLog("DECISION " + CheckCount + ": invalid-distance delivery reached force-delivery threshold")
 			If LogOnlyMode
 				WriteLog("OBSERVE " + CheckCount + ": log-only mode would force-deliver invalid-distance delivery")
@@ -229,6 +230,8 @@ Function MonitorCourier()
 
 		Return
 	EndIf
+
+	BadStateStartTime = 0.0
 
 	If closeEnough
 		LastDistance = distance
@@ -286,13 +289,6 @@ Function MonitorCourier()
 		Else
 			ForceDeliver(courier)
 		EndIf
-	ElseIf stalledFor >= TeleportTime && distance >= StuckDistance
-		WriteLog("DECISION " + CheckCount + ": teleport threshold reached")
-		If LogOnlyMode
-			WriteLog("OBSERVE " + CheckCount + ": log-only mode would teleport courier here")
-		Else
-			TeleportCourier(courier)
-		EndIf
 	ElseIf stalledFor >= SoftResetTime
 		WriteLog("DECISION " + CheckCount + ": soft reset threshold reached")
 		If LogOnlyMode
@@ -342,7 +338,7 @@ Function SoftReset(Actor courier)
 		Return
 	EndIf
 
-	String blockReason = GetFailsafeActionBlockReason()
+	String blockReason = GetFailsafeActionBlockReason(False)
 	If blockReason != ""
 		WriteLog("ACTION: soft reset delayed; " + blockReason)
 		Return
@@ -362,43 +358,6 @@ Function SoftReset(Actor courier)
 	LastActionLevel = 1
 	Notify("Courier delivery retry")
 	WriteLog("ACTION: soft reset completed")
-EndFunction
-
-Function TeleportCourier(Actor courier)
-	If LogOnlyMode
-		WriteLog("ACTION: teleport blocked by log-only mode")
-		Return
-	EndIf
-
-	If LastActionLevel >= 2
-		WriteLog("ACTION: teleport skipped; already performed action level " + LastActionLevel)
-		Return
-	EndIf
-
-	String blockReason = GetFailsafeActionBlockReason()
-	If blockReason != ""
-		WriteLog("ACTION: teleport delayed; " + blockReason)
-		Return
-	EndIf
-
-	If courier
-		Bool restarted = RestartCourierQuest()
-		If restarted == False
-			WriteLog("ACTION: teleport continuing after courier quest restart failed")
-		EndIf
-
-		courier.StopCombatAlarm()
-		courier.MoveTo(PlayerRef, 160.0, 80.0, 0.0)
-		courier.Enable()
-		courier.EvaluatePackage()
-		LastProgressTime = Utility.GetCurrentRealTime()
-		LastDistance = courier.GetDistance(PlayerRef)
-		LastActionLevel = 2
-		Notify("Courier moved near player")
-		WriteLog("ACTION: courier teleported near player; newDistance=" + LastDistance)
-	Else
-		WriteLog("ACTION: teleport failed; courier reference is none")
-	EndIf
 EndFunction
 
 Function ForceDeliver(Actor courier)
@@ -461,7 +420,7 @@ Function ForceDeliver(Actor courier)
 	WriteLog("ACTION: force delivery completed")
 EndFunction
 
-String Function GetFailsafeActionBlockReason()
+String Function GetFailsafeActionBlockReason(Bool requireExterior = True)
 	If RequireSafeWorldForForceDelivery == False
 		Return ""
 	EndIf
@@ -480,6 +439,10 @@ String Function GetFailsafeActionBlockReason()
 
 	If PlayerRef.IsInCombat() || PlayerRef.GetCombatState() != 0
 		Return "player is in combat"
+	EndIf
+
+	If requireExterior == False
+		Return ""
 	EndIf
 
 	Cell playerCell = PlayerRef.GetParentCell()
@@ -575,14 +538,22 @@ EndFunction
 
 Function QueueCheck(Float delay)
 	If UpdateQueued
-		If LogEveryCheck
-			WriteLog("QUEUE: update already queued; requested delay=" + delay)
+		If QueuedDelay > 0.0 && delay < QueuedDelay
+			UnregisterForUpdate()
+			If LogEveryCheck
+				WriteLog("QUEUE: replacing queued update delay=" + QueuedDelay + " with delay=" + delay)
+			EndIf
+		Else
+			If LogEveryCheck
+				WriteLog("QUEUE: update already queued; requested delay=" + delay)
+			EndIf
+			Return
 		EndIf
-		Return
 	EndIf
 
 	RegisterForSingleUpdate(delay)
 	UpdateQueued = True
+	QueuedDelay = delay
 
 	If LogEveryCheck
 		WriteLog("QUEUE: next check in " + delay + " seconds")
@@ -594,8 +565,19 @@ Function ClearDeliveryState()
 	DeliveryStartTime = 0.0
 	LastProgressTime = 0.0
 	LastCloseTime = 0.0
+	BadStateStartTime = 0.0
+	QueuedDelay = 0.0
 	LastDistance = -1.0
 	LastActionLevel = 0
+EndFunction
+
+Float Function GetBadStateAge(Float nowTime)
+	If BadStateStartTime <= 0.0
+		BadStateStartTime = nowTime
+		Return 0.0
+	EndIf
+
+	Return nowTime - BadStateStartTime
 EndFunction
 
 Float Function GetCloseFor(Float nowTime)

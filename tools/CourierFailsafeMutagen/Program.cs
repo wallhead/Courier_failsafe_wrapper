@@ -74,7 +74,7 @@ quest.VirtualMachineAdapter.Scripts.Add(new ScriptEntry
         BoolProperty("LogOnlyMode", false),
         BoolProperty("RequireSafeWorldForForceDelivery", true),
         BoolProperty("LogEnabled", true),
-        BoolProperty("LogEveryCheck", true),
+        BoolProperty("LogEveryCheck", false),
         StringProperty("LogName", "WICourierFailsafe"),
         StringProperty("ForceDeliveryMessage", ForceDeliveryMessagePlaceholder)
     }
@@ -85,6 +85,7 @@ ReplaceAsciiStringWithCp1251(outputPluginPath, ForceDeliveryMessagePlaceholder, 
 SetEslFlag(outputPluginPath);
 WriteSeq(outputSeqPath, QuestLocalFormId);
 CopyScripts(SourceScriptsMod, outputModPath);
+DeleteStaleAliasHelperScripts(outputModPath);
 
 Console.WriteLine($"Plugin written: {outputPluginPath}");
 Console.WriteLine($"SEQ written:    {outputSeqPath}");
@@ -258,9 +259,7 @@ static void CopyScripts(string sourceModPath, string outputModPath)
 {
     string[] scriptNames =
     [
-        "WICourierFailsafeScript",
-        "WICourierFailsafePlayerAliasScript",
-        "WICourierFailsafeCourierAliasScript"
+        "WICourierFailsafeScript"
     ];
 
     foreach (var scriptName in scriptNames)
@@ -272,6 +271,29 @@ static void CopyScripts(string sourceModPath, string outputModPath)
         CopyRequired(
             Path.Combine(sourceModPath, "Source", "Scripts", scriptName + ".psc"),
             Path.Combine(outputModPath, "Source", "Scripts", scriptName + ".psc"));
+    }
+}
+
+static void DeleteStaleAliasHelperScripts(string outputModPath)
+{
+    string[] staleScriptNames =
+    [
+        "WICourierFailsafePlayerAliasScript",
+        "WICourierFailsafeCourierAliasScript"
+    ];
+
+    foreach (var scriptName in staleScriptNames)
+    {
+        DeleteIfExists(Path.Combine(outputModPath, "Scripts", scriptName + ".pex"));
+        DeleteIfExists(Path.Combine(outputModPath, "Source", "Scripts", scriptName + ".psc"));
+    }
+}
+
+static void DeleteIfExists(string path)
+{
+    if (File.Exists(path))
+    {
+        File.Delete(path);
     }
 }
 

@@ -12,7 +12,6 @@ It was built after observing vanilla courier logs where pending courier items co
 - Lets vanilla WICourier start, stop, and restart normally.
 - Avoids treating normal holding-cell or invalid-distance states as immediate failures.
 - Soft-resets the courier quest when pending items make no progress.
-- Teleports the courier only when the actor is far away and genuinely stalled.
 - Force-delivers as a final fallback if the courier cannot reach the player.
 - Shows a blocking message box before force delivery:
 
@@ -22,7 +21,9 @@ It was built after observing vanilla courier logs where pending courier items co
 
 Force delivery uses the vanilla `WICourierScript.GiveItemsToPlayer()` path, which clears `WICourierItemCount`, transfers the courier container contents to the player, and shows the vanilla items-added message.
 If the vanilla courier script property is unavailable, the wrapper uses a direct `WICourierContainerRef` property as a fallback and only clears pending state after a confirmed transfer.
-By default, soft reset, teleport, and force delivery wait until the player is in an exterior worldspace, out of combat, and not in a menu/dialogue.
+By default, force delivery waits until the player is in an exterior worldspace,
+out of combat, and not in a menu/dialogue. Soft reset may run indoors, but still
+waits for combat and menu/dialogue to end.
 
 ## Included Files
 
@@ -30,11 +31,7 @@ By default, soft reset, teleport, and force delivery wait until the player is in
 CourierFailsafe.esp
 Seq/CourierFailsafe.seq
 Scripts/WICourierFailsafeScript.pex
-Scripts/WICourierFailsafePlayerAliasScript.pex
-Scripts/WICourierFailsafeCourierAliasScript.pex
 Source/Scripts/WICourierFailsafeScript.psc
-Source/Scripts/WICourierFailsafePlayerAliasScript.psc
-Source/Scripts/WICourierFailsafeCourierAliasScript.psc
 tools/CourierFailsafeMutagen/
 ```
 
