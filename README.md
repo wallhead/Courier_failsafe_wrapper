@@ -78,6 +78,7 @@ The wrapper intentionally waits before acting because vanilla courier behavior o
 - `GetDistance()` can be invalid while the courier is unloaded or in a different space.
 - WICourier can stop at stage `200` and restart later while pending items still exist.
 - The player can move through cells with no valid `Location`, causing vanilla restart delays.
+- Direct force delivery waits through a longer vanilla restart grace when WICourier is not running.
 
 If pending courier items remain active past the final timeout and the courier cannot spawn or reach the player, the wrapper force-delivers the pending letters/items directly.
 

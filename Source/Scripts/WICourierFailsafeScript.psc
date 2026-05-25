@@ -28,6 +28,9 @@ Float Property SoftResetTime = 90.0 Auto
 Float Property StartupGraceTime = 60.0 Auto
 {Seconds to let vanilla story manager start or restart WICourier after pending items appear.}
 
+Float Property VanillaRestartGraceTime = 600.0 Auto
+{Seconds to let vanilla Story Manager restart WICourier before direct force delivery.}
+
 
 Float Property ForceDeliverTime = 300.0 Auto
 {Seconds without progress before direct handoff.}
@@ -180,6 +183,10 @@ Function MonitorCourier()
 		EndIf
 
 		If badStateAge >= ForceDeliverTime && AllowDirectDelivery
+			If ShouldDelayForceDeliveryForVanillaRestart(badStateAge, questRunning, "disabled courier")
+				Return
+			EndIf
+
 			WriteLog("DECISION " + CheckCount + ": courier stayed disabled past force-delivery threshold")
 			If LogOnlyMode
 				WriteLog("OBSERVE " + CheckCount + ": log-only mode would force-deliver disabled courier delivery")
@@ -216,6 +223,10 @@ Function MonitorCourier()
 		EndIf
 
 		If badStateAge >= ForceDeliverTime && AllowDirectDelivery
+			If ShouldDelayForceDeliveryForVanillaRestart(badStateAge, questRunning, "invalid-distance courier")
+				Return
+			EndIf
+
 			WriteLog("DECISION " + CheckCount + ": invalid-distance delivery reached force-delivery threshold")
 			If LogOnlyMode
 				WriteLog("OBSERVE " + CheckCount + ": log-only mode would force-deliver invalid-distance delivery")
@@ -330,7 +341,13 @@ Function HandleMissingCourier()
 		Return
 	EndIf
 
+	Bool questRunning = IsCourierQuestRunning()
+
 	If missingFor >= ForceDeliverTime && AllowDirectDelivery
+		If ShouldDelayForceDeliveryForVanillaRestart(missingFor, questRunning, "missing courier")
+			Return
+		EndIf
+
 		WriteLog("MISSING: force delivery threshold reached without courier")
 		ForceDeliver(None)
 	ElseIf missingFor >= SoftResetTime
@@ -555,6 +572,32 @@ ObjectReference Function GetCourierContainer()
 	EndIf
 
 	Return None
+EndFunction
+
+
+Bool Function IsCourierQuestRunning()
+	If WICourierQuest
+		Return WICourierQuest.IsRunning()
+	EndIf
+
+	Return False
+EndFunction
+
+Bool Function ShouldDelayForceDeliveryForVanillaRestart(Float stallAge, Bool questRunning, String stateText)
+	If questRunning
+		Return False
+	EndIf
+
+	If VanillaRestartGraceTime <= ForceDeliverTime
+		Return False
+	EndIf
+
+	If stallAge < VanillaRestartGraceTime
+		WriteLog("RESULT " + CheckCount + ": " + stateText + " reached force threshold but WICourier is not running; waiting for vanilla restart grace age=" + stallAge + ", grace=" + VanillaRestartGraceTime)
+		Return True
+	EndIf
+
+	Return False
 EndFunction
 
 Function QueueCheck(Float delay)
