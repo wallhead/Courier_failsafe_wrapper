@@ -13,7 +13,7 @@ It was built after observing vanilla courier logs where pending courier items co
 - Avoids treating normal holding-cell or invalid-distance states as immediate failures.
 - Soft-resets the courier quest when pending items make no progress.
 - Force-delivers as a final fallback if the courier cannot reach the player.
-- Shows a blocking message box before force delivery:
+- Shows a blocking message box after successful failsafe delivery:
 
 ```text
 Курьер устал бегать за вами и прислал письма почтой. Не забудьте прочитать их в инвентаре!
@@ -89,8 +89,8 @@ The Papyrus sources are in:
 Source/Scripts/
 ```
 
-`WICourierFailsafeScript.psc` is saved as Windows-1251 so Russian Cyrillic text
-survives Papyrus compilation without being replaced by question marks.
+The generated ESP writes the Russian force-delivery message as UTF-8 bytes after
+Mutagen creates a same-length placeholder VM string.
 
 The generated plugin can be rebuilt with the Mutagen helper in:
 

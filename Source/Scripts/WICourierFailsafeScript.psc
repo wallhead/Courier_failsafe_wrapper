@@ -70,6 +70,7 @@ Float LastProgressTime = 0.0
 Float DeliveryStartTime = 0.0
 Float LastCloseTime = 0.0
 Float BadStateStartTime = 0.0
+Float MissingCourierStartTime = 0.0
 Float QueuedDelay = 0.0
 Float LastDistance = -1.0
 Bool DeliveryActive = False
@@ -155,6 +156,8 @@ Function MonitorCourier()
 		HandleMissingCourier()
 		Return
 	EndIf
+
+	MissingCourierStartTime = 0.0
 
 	Float deliveryAge = nowTime - DeliveryStartTime
 
@@ -302,26 +305,35 @@ Function MonitorCourier()
 EndFunction
 
 Function HandleMissingCourier()
+	Float nowTime = Utility.GetCurrentRealTime()
+
 	If DeliveryActive == False
 		DeliveryActive = True
-		DeliveryStartTime = Utility.GetCurrentRealTime()
-		LastProgressTime = DeliveryStartTime
+		DeliveryStartTime = nowTime
+		LastProgressTime = nowTime
+		MissingCourierStartTime = nowTime
 		WriteLog("MISSING: first missing-courier check; starting missing timer")
 		Return
 	EndIf
 
-	Float stalledFor = Utility.GetCurrentRealTime() - DeliveryStartTime
-	WriteLog("MISSING: courier unavailable for " + stalledFor + " seconds")
+	If MissingCourierStartTime <= 0.0
+		MissingCourierStartTime = nowTime
+		WriteLog("MISSING: courier reference just became unavailable; starting missing timer")
+		Return
+	EndIf
+
+	Float missingFor = nowTime - MissingCourierStartTime
+	WriteLog("MISSING: courier unavailable for " + missingFor + " seconds")
 
 	If LogOnlyMode
 		WriteLog("MISSING: log-only mode is not restarting or force-delivering")
 		Return
 	EndIf
 
-	If stalledFor >= ForceDeliverTime && AllowDirectDelivery
+	If missingFor >= ForceDeliverTime && AllowDirectDelivery
 		WriteLog("MISSING: force delivery threshold reached without courier")
 		ForceDeliver(None)
-	ElseIf stalledFor >= SoftResetTime
+	ElseIf missingFor >= SoftResetTime
 		WriteLog("MISSING: restarting courier quest")
 		SoftReset(None)
 	EndIf
@@ -377,26 +389,33 @@ Function ForceDeliver(Actor courier)
 		Return
 	EndIf
 
-	ShowForceDeliveryMessage()
-
 	Bool delivered = False
 	If CourierSystem
 		CourierSystem.GiveItemsToPlayer()
 		WriteLog("ACTION: vanilla CourierSystem.GiveItemsToPlayer() called")
-		delivered = True
-	Else
+		If GetPendingItemCount() <= 0
+			delivered = True
+		Else
+			WriteLog("ACTION: vanilla force delivery did not clear pending count; trying container fallback")
+		EndIf
+	EndIf
+
+	If delivered == False
 		ObjectReference containerRef = GetCourierContainer()
 		If containerRef
 			containerRef.RemoveAllItems(PlayerRef)
 			WriteLog("ACTION: fallback courier container RemoveAllItems(PlayerRef) called")
-			delivered = True
+			If WICourierItemCount
+				WICourierItemCount.SetValue(0.0)
+				WriteLog("ACTION: WICourierItemCount set to 0")
+			EndIf
+			If GetPendingItemCount() <= 0
+				delivered = True
+			Else
+				WriteLog("ACTION: fallback delivery did not clear pending count")
+			EndIf
 		Else
 			WriteLog("ACTION: force delivery could not find courier container")
-		EndIf
-
-		If delivered && WICourierItemCount
-			WICourierItemCount.SetValue(0.0)
-			WriteLog("ACTION: WICourierItemCount set to 0")
 		EndIf
 	EndIf
 
@@ -413,6 +432,8 @@ Function ForceDeliver(Actor courier)
 		WICourierQuest.SetStage(200)
 		WriteLog("ACTION: WICourier set to stage 200")
 	EndIf
+
+	ShowForceDeliveryMessage()
 
 	ClearDeliveryState()
 	LastActionLevel = 3
@@ -566,6 +587,7 @@ Function ClearDeliveryState()
 	LastProgressTime = 0.0
 	LastCloseTime = 0.0
 	BadStateStartTime = 0.0
+	MissingCourierStartTime = 0.0
 	QueuedDelay = 0.0
 	LastDistance = -1.0
 	LastActionLevel = 0
