@@ -17,7 +17,7 @@ It was built after observing vanilla courier logs where pending courier items co
 - Shows a blocking message box before force delivery:
 
 ```text
-Kurier ustal za toboy begat i prislal vse pisma pochte. Ne zabud prochitat ih v inventare!
+Курьер устал бегать за вами и прислал письма почтой. Не забудьте прочитать их в инвентаре!
 ```
 
 Force delivery uses the vanilla `WICourierScript.GiveItemsToPlayer()` path, which clears `WICourierItemCount`, transfers the courier container contents to the player, and shows the vanilla items-added message.
@@ -91,6 +91,9 @@ The Papyrus sources are in:
 ```text
 Source/Scripts/
 ```
+
+`WICourierFailsafeScript.psc` is saved as Windows-1251 so Russian Cyrillic text
+survives Papyrus compilation without being replaced by question marks.
 
 The generated plugin can be rebuilt with the Mutagen helper in:
 

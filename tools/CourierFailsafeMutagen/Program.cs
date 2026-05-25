@@ -10,6 +10,8 @@ const string OutputModName = "Courier Failsafe Wrapper";
 const string PluginName = "CourierFailsafe.esp";
 const string QuestEditorId = "WICourierFailsafeQuest";
 const string QuestScriptName = "WICourierFailsafeScript";
+const string ForceDeliveryMessagePlaceholder = "..........................................................................................";
+const string ForceDeliveryMessageRussian = "Курьер устал бегать за вами и прислал письма почтой. Не забудьте прочитать их в инвентаре!";
 const uint QuestLocalFormId = 0x000800;
 
 var outputModPath = Path.Combine(Mo2Root, "mods", OutputModName);
@@ -74,11 +76,12 @@ quest.VirtualMachineAdapter.Scripts.Add(new ScriptEntry
         BoolProperty("LogEnabled", true),
         BoolProperty("LogEveryCheck", true),
         StringProperty("LogName", "WICourierFailsafe"),
-        StringProperty("ForceDeliveryMessage", "Kurier ustal za toboy begat i prislal vse pisma pochte. Ne zabud prochitat ih v inventare!")
+        StringProperty("ForceDeliveryMessage", ForceDeliveryMessagePlaceholder)
     }
 });
 
 patch.WriteToBinary(outputPluginPath);
+ReplaceAsciiStringWithCp1251(outputPluginPath, ForceDeliveryMessagePlaceholder, ForceDeliveryMessageRussian);
 SetEslFlag(outputPluginPath);
 WriteSeq(outputSeqPath, QuestLocalFormId);
 CopyScripts(SourceScriptsMod, outputModPath);
@@ -177,6 +180,71 @@ static void SetEslFlag(string pluginPath)
     {
         throw new InvalidOperationException($"Failed to set ESL flag on '{pluginPath}'.");
     }
+}
+
+static void ReplaceAsciiStringWithCp1251(string pluginPath, string oldValue, string newValue)
+{
+    var oldBytes = System.Text.Encoding.ASCII.GetBytes(oldValue);
+    var newBytes = EncodeWindows1251(newValue);
+    if (oldBytes.Length != newBytes.Length)
+    {
+        throw new InvalidOperationException(
+            $"CP1251 replacement must match the placeholder byte length. Old={oldBytes.Length}, new={newBytes.Length}");
+    }
+
+    var bytes = File.ReadAllBytes(pluginPath);
+    var match = -1;
+    for (var i = 0; i <= bytes.Length - oldBytes.Length; i++)
+    {
+        var found = true;
+        for (var j = 0; j < oldBytes.Length; j++)
+        {
+            if (bytes[i + j] != oldBytes[j])
+            {
+                found = false;
+                break;
+            }
+        }
+
+        if (!found)
+        {
+            continue;
+        }
+
+        if (match >= 0)
+        {
+            throw new InvalidOperationException("Found the force-delivery message placeholder more than once.");
+        }
+
+        match = i;
+    }
+
+    if (match < 0)
+    {
+        throw new InvalidOperationException("Could not find the force-delivery message placeholder in the generated plugin.");
+    }
+
+    Array.Copy(newBytes, 0, bytes, match, newBytes.Length);
+    File.WriteAllBytes(pluginPath, bytes);
+}
+
+static byte[] EncodeWindows1251(string value)
+{
+    var bytes = new byte[value.Length];
+    for (var i = 0; i < value.Length; i++)
+    {
+        var ch = value[i];
+        bytes[i] = ch switch
+        {
+            <= '\u007F' => (byte)ch,
+            '\u0401' => 0xA8,
+            '\u0451' => 0xB8,
+            >= '\u0410' and <= '\u044F' => (byte)(ch - 0x350),
+            _ => throw new InvalidOperationException($"Character '{ch}' cannot be encoded as Windows-1251 by this helper.")
+        };
+    }
+
+    return bytes;
 }
 
 static bool IsEslFlagged(string pluginPath)
